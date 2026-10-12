@@ -40,6 +40,21 @@ namespace RelayChat.Web.Models
         [ForeignKey("ChannelId")]
         public virtual Channel Channel { get; set; }
 
+        /// <summary>True once the recipient has opened the conversation containing this message.</summary>
+        public bool IsRead { get; set; }
+
+        /// <summary>Set for thread replies — points to the root message in a thread.</summary>
+        public int? ParentMessageId { get; set; }
+
+        [ForeignKey("ParentMessageId")]
+        public virtual Message ParentMessage { get; set; }
+
+        /// <summary>True when a user has reported this message for moderation review.</summary>
+        public bool IsFlagged { get; set; }
+
+        /// <summary>When the message was flagged for review.</summary>
+        public DateTime? FlaggedAt { get; set; }
+
         /// <summary>Returns display-safe body text, replacing deleted messages.</summary>
         public string GetDisplayBody()
         {

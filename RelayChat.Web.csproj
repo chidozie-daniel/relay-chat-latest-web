@@ -92,6 +92,26 @@
     <Compile Include="Data\Repositories\ChannelRepository.cs" />
     <Compile Include="Data\Repositories\IConversationRepository.cs" />
     <Compile Include="Data\Repositories\ConversationRepository.cs" />
+    <Compile Include="Data\Repositories\IUserSettingRepository.cs" />
+    <Compile Include="Data\Repositories\UserSettingRepository.cs" />
+    <Compile Include="Data\Repositories\IUserBlockRepository.cs" />
+    <Compile Include="Data\Repositories\UserBlockRepository.cs" />
+    <Compile Include="Data\Repositories\IUserPresenceRepository.cs" />
+    <Compile Include="Data\Repositories\UserPresenceRepository.cs" />
+    <Compile Include="Data\Repositories\IReactionRepository.cs" />
+    <Compile Include="Data\Repositories\ReactionRepository.cs" />
+    <Compile Include="Data\Repositories\IAttachmentRepository.cs" />
+    <Compile Include="Data\Repositories\AttachmentRepository.cs" />
+    <Compile Include="Data\Repositories\IMentionRepository.cs" />
+    <Compile Include="Data\Repositories\MentionRepository.cs" />
+    <Compile Include="Data\Repositories\IMessageEditRepository.cs" />
+    <Compile Include="Data\Repositories\MessageEditRepository.cs" />
+    <Compile Include="Data\Repositories\IPinnedMessageRepository.cs" />
+    <Compile Include="Data\Repositories\PinnedMessageRepository.cs" />
+    <Compile Include="Data\Repositories\IChannelInviteRepository.cs" />
+    <Compile Include="Data\Repositories\ChannelInviteRepository.cs" />
+    <Compile Include="Data\Repositories\IAuditLogRepository.cs" />
+    <Compile Include="Data\Repositories\AuditLogRepository.cs" />
     <Compile Include="Chat.aspx.cs">
       <DependentUpon>Chat.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
@@ -121,6 +141,16 @@
     <Compile Include="Models\Conversation.cs" />
     <Compile Include="Models\Message.cs" />
     <Compile Include="Models\User.cs" />
+    <Compile Include="Models\UserSetting.cs" />
+    <Compile Include="Models\UserBlock.cs" />
+    <Compile Include="Models\UserPresence.cs" />
+    <Compile Include="Models\Reaction.cs" />
+    <Compile Include="Models\Attachment.cs" />
+    <Compile Include="Models\Mention.cs" />
+    <Compile Include="Models\MessageEdit.cs" />
+    <Compile Include="Models\PinnedMessage.cs" />
+    <Compile Include="Models\ChannelInvite.cs" />
+    <Compile Include="Models\AuditLog.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Register.aspx.cs">
       <DependentUpon>Register.aspx</DependentUpon>

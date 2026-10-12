@@ -10,3 +10,15 @@ C:\Users\HP LAPTOP\Downloads\Relay Chat all\RelayChat.Web\bin\EntityFramework.Sq
 C:\Users\HP LAPTOP\Downloads\Relay Chat all\RelayChat.Web\obj\Debug\RelayCha.2828D3B2.Up2Date
 C:\Users\HP LAPTOP\Downloads\Relay Chat all\RelayChat.Web\obj\Debug\RelayChat.Web.dll
 C:\Users\HP LAPTOP\Downloads\Relay Chat all\RelayChat.Web\obj\Debug\RelayChat.Web.pdb
+C:\Users\HP LAPTOP\Downloads\5th semester Projects\relay-chat-latest-web\bin\RelayChat.Web.dll
+C:\Users\HP LAPTOP\Downloads\5th semester Projects\relay-chat-latest-web\bin\RelayChat.Web.pdb
+C:\Users\HP LAPTOP\Downloads\5th semester Projects\relay-chat-latest-web\bin\EntityFramework.dll
+C:\Users\HP LAPTOP\Downloads\5th semester Projects\relay-chat-latest-web\bin\EntityFramework.SqlServer.dll
+C:\Users\HP LAPTOP\Downloads\5th semester Projects\relay-chat-latest-web\bin\EntityFramework.xml
+C:\Users\HP LAPTOP\Downloads\5th semester Projects\relay-chat-latest-web\bin\EntityFramework.SqlServer.xml
+C:\Users\HP LAPTOP\Downloads\5th semester Projects\relay-chat-latest-web\obj\Debug\RelayChat.Web.csproj.AssemblyReference.cache
+C:\Users\HP LAPTOP\Downloads\5th semester Projects\relay-chat-latest-web\obj\Debug\RelayChat.Web.csproj.CoreCompileInputs.cache
+C:\Users\HP LAPTOP\Downloads\5th semester Projects\relay-chat-latest-web\obj\Debug\RelayCha.2828D3B2.Up2Date
+C:\Users\HP LAPTOP\Downloads\5th semester Projects\relay-chat-latest-web\obj\Debug\RelayChat.Web.dll
+C:\Users\HP LAPTOP\Downloads\5th semester Projects\relay-chat-latest-web\obj\Debug\RelayChat.Web.pdb
+C:\Users\HP LAPTOP\Downloads\5th semester Projects\relay-chat-latest-web\bin\RelayChat.Web.dll.config

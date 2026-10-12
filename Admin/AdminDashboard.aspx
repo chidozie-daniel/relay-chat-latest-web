@@ -35,6 +35,12 @@
       <button class="admin-nav-link" data-panel="channels">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> Channels
       </button>
+      <button class="admin-nav-link" data-panel="moderation">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/></svg> Moderation
+      </button>
+      <button class="admin-nav-link" data-panel="logs">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/></svg> Activity Log
+      </button>
     </div>
     <div class="p-2">
       <a href="~/Chat.aspx" class="admin-nav-link" runat="server">
@@ -48,7 +54,7 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
       <div>
         <h1 class="font-display fw-bold mb-0" style="font-size:1.5rem;" id="adminPanelTitle">Dashboard</h1>
-        <p style="color:var(--ash-500);font-size:.85rem;margin:0;">Platform overview for Relay Chat</p>
+        <p style="color:var(--ash-500);font-size:.85rem;margin:0;" id="adminPanelSub">Platform overview for Relay Chat</p>
       </div>
       <button class="icon-btn d-md-none" id="adminMenuBtn" style="border:1px solid var(--line);">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
@@ -83,6 +89,23 @@
           </div>
         </div>
       </div>
+      <!-- Recent activity from audit log -->
+      <div class="surface-card p-3 mb-4">
+        <h6 class="font-display fw-bold mb-3" style="font-size:.85rem;">Recent activity</h6>
+        <asp:Repeater ID="rptRecentActivity" runat="server">
+          <ItemTemplate>
+            <div class="d-flex justify-content-between align-items-center py-2" style="border-bottom:1px solid var(--line-soft);">
+              <div style="font-size:.85rem;">
+                <strong><%# System.Web.HttpUtility.HtmlEncode(Eval("ActorName").ToString()) %></strong>
+                <%# System.Web.HttpUtility.HtmlEncode(Eval("Action").ToString()) %>
+                <span class="badge-soft"><%# System.Web.HttpUtility.HtmlEncode(Eval("Target").ToString()) %></span>
+              </div>
+              <span class="font-mono" style="font-size:.72rem;color:var(--ash-400);"><%# Eval("FormattedTime") %></span>
+            </div>
+          </ItemTemplate>
+        </asp:Repeater>
+      </div>
+      <!-- All users at a glance -->
       <div class="surface-card p-3">
         <h6 class="font-display fw-bold mb-3" style="font-size:.85rem;">All users at a glance</h6>
         <asp:Repeater ID="rptDashUsers" runat="server">
@@ -165,12 +188,89 @@
       </div>
     </div>
 
+    <!-- ── MODERATION PANEL ────────────────────────────────────── -->
+    <div class="admin-panel" id="panel-moderation">
+      <div class="surface-card p-4 mb-3">
+        <h6 class="font-display fw-bold mb-2" style="font-size:.9rem;">Flagged / reported messages</h6>
+        <p style="font-size:.85rem;color:var(--ash-500);">Messages reported by users appear here for review.</p>
+        <asp:UpdatePanel ID="upModeration" runat="server" UpdateMode="Conditional">
+          <ContentTemplate>
+            <asp:Repeater ID="rptFlagged" runat="server" OnItemCommand="rptFlagged_ItemCommand">
+              <ItemTemplate>
+                <div class="d-flex align-items-start gap-3 p-3 rounded-3 mb-2" style="background:var(--paper-50);border:1px solid var(--line);">
+                  <div class="avatar" style="width:36px;height:36px;background:<%# Eval("SenderColor") %>;font-size:.8rem;flex-shrink:0;">
+                    <%# Eval("SenderInitials") %>
+                  </div>
+                  <div class="flex-grow-1" style="min-width:0;">
+                    <div class="d-flex justify-content-between">
+                      <span style="font-size:.85rem;font-weight:600;"><%# System.Web.HttpUtility.HtmlEncode(Eval("SenderName").ToString()) %></span>
+                      <span class="badge-soft"><%# Eval("ContextLabel") %></span>
+                    </div>
+                    <div style="font-size:.82rem;color:var(--ash-500);margin:.2rem 0;">
+                      "<%# System.Web.HttpUtility.HtmlEncode(Eval("Body").ToString()) %>"
+                    </div>
+                    <div class="font-mono" style="font-size:.68rem;color:var(--ash-400);">Reported <%# Eval("ReportedAt") %></div>
+                  </div>
+                  <div class="d-flex gap-2 flex-shrink-0">
+                    <asp:Button ID="btnDismiss" runat="server" CssClass="btn-ghost"
+                        style="padding:.4rem .8rem;font-size:.78rem;"
+                        CommandName="Dismiss" CommandArgument='<%# Eval("MessageId") %>'
+                        Text="Dismiss" />
+                    <asp:Button ID="btnRemove" runat="server" CssClass="btn-signal"
+                        style="padding:.4rem .8rem;font-size:.78rem;background:var(--danger);box-shadow:none;"
+                        CommandName="Remove" CommandArgument='<%# Eval("MessageId") %>'
+                        Text="Remove" />
+                  </div>
+                </div>
+              </ItemTemplate>
+            </asp:Repeater>
+            <asp:Label ID="lblNoFlagged" runat="server" Visible="false"
+                style="display:block;text-align:center;padding:2rem;color:var(--ash-400);font-size:.85rem;">
+              ✅ No items awaiting review — all caught up.
+            </asp:Label>
+          </ContentTemplate>
+        </asp:UpdatePanel>
+      </div>
+    </div>
+
+    <!-- ── ACTIVITY LOG PANEL ──────────────────────────────────── -->
+    <div class="admin-panel" id="panel-logs">
+      <div class="surface-card" style="overflow-x:auto;">
+        <asp:Repeater ID="rptLogs" runat="server">
+          <HeaderTemplate>
+            <table class="data-table"><thead><tr><th>Actor</th><th>Action</th><th>Target</th><th>IP</th><th>Time</th></tr></thead><tbody>
+          </HeaderTemplate>
+          <ItemTemplate>
+            <tr>
+              <td style="font-size:.85rem;font-weight:600;"><%# System.Web.HttpUtility.HtmlEncode(Eval("ActorName").ToString()) %></td>
+              <td style="font-size:.85rem;"><%# System.Web.HttpUtility.HtmlEncode(Eval("Action").ToString()) %></td>
+              <td><span class="badge-soft"><%# System.Web.HttpUtility.HtmlEncode(Eval("Target").ToString()) %></span></td>
+              <td class="font-mono" style="font-size:.75rem;color:var(--ash-400);"><%# Eval("IpAddress") ?? "—" %></td>
+              <td class="font-mono" style="font-size:.76rem;color:var(--ash-400);"><%# Eval("FormattedTime") %></td>
+            </tr>
+          </ItemTemplate>
+          <FooterTemplate></tbody></table></FooterTemplate>
+        </asp:Repeater>
+        <asp:Label ID="lblNoLogs" runat="server" Visible="false"
+            style="display:block;text-align:center;padding:2rem;color:var(--ash-400);font-size:.85rem;">
+          No activity recorded yet.
+        </asp:Label>
+      </div>
+    </div>
+
   </main>
 </div>
 
 </form>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
+var PANEL_TITLES = {
+    dashboard:  ['Dashboard',    'Platform overview for Relay Chat'],
+    users:      ['Users',        'Manage registered accounts'],
+    channels:   ['Channels',     'All channels on the platform'],
+    moderation: ['Moderation',   'Review flagged and reported content'],
+    logs:       ['Activity Log', 'Administrative action history']
+};
 /* Admin panel nav */
 document.querySelectorAll('.admin-nav-link[data-panel]').forEach(function(btn) {
     btn.addEventListener('click', function() {
@@ -178,8 +278,10 @@ document.querySelectorAll('.admin-nav-link[data-panel]').forEach(function(btn) {
         btn.classList.add('active');
         document.querySelectorAll('.admin-panel').forEach(function(p) { p.classList.remove('active'); });
         document.getElementById('panel-' + btn.dataset.panel).classList.add('active');
-        document.getElementById('adminPanelTitle').textContent =
-            { dashboard: 'Dashboard', users: 'Users', channels: 'Channels' }[btn.dataset.panel];
+        var info = PANEL_TITLES[btn.dataset.panel] || [btn.dataset.panel, ''];
+        document.getElementById('adminPanelTitle').textContent = info[0];
+        var sub = document.getElementById('adminPanelSub');
+        if (sub) sub.textContent = info[1];
         document.getElementById('adminNav').classList.remove('show');
     });
 });

@@ -42,6 +42,12 @@
                 <span class="brand-word fs-5">Relay Chat</span>
             </div>
 
+            <a href="<%= ResolveUrl("~/Default.aspx") %>" class="d-inline-flex align-items-center gap-1 mb-3"
+               style="font-size:.83rem;color:var(--ash-500);text-decoration:none;">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                Back to home
+            </a>
+
             <h2 class="font-display fw-bold mb-1" style="font-size:1.6rem;color:var(--ash-800);">Create your account</h2>
             <p class="mb-4" style="color:var(--ash-500);font-size:.9rem;">It only takes a minute to get started.</p>
 
