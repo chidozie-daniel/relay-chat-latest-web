@@ -23,22 +23,24 @@ namespace RelayChat.Web.Data.Repositories
             string lower = usernameOrEmail.Trim().ToLower();
             using (var db = new RelayChatDbContext())
                 return db.Users.FirstOrDefault(u =>
-                    u.Username.ToLower() == lower ||
-                    u.Email.ToLower() == lower);
+                    (u.Username ?? string.Empty).ToLower() == lower ||
+                    (u.Email ?? string.Empty).ToLower() == lower);
         }
 
         public bool IsUsernameTaken(string username)
         {
+            if (string.IsNullOrWhiteSpace(username)) return false;
             string lower = username.Trim().ToLower();
             using (var db = new RelayChatDbContext())
-                return db.Users.Any(u => u.Username.ToLower() == lower);
+                return db.Users.Any(u => (u.Username ?? string.Empty).ToLower() == lower);
         }
 
         public bool IsEmailTaken(string email)
         {
+            if (string.IsNullOrWhiteSpace(email)) return false;
             string lower = email.Trim().ToLower();
             using (var db = new RelayChatDbContext())
-                return db.Users.Any(u => u.Email.ToLower() == lower);
+                return db.Users.Any(u => (u.Email ?? string.Empty).ToLower() == lower);
         }
 
         public void Add(User user)
@@ -70,8 +72,9 @@ namespace RelayChat.Web.Data.Repositories
             string lower = (query ?? "").Trim().ToLower();
             using (var db = new RelayChatDbContext())
                 return db.Users
-                    .Where(u => u.Username.ToLower().Contains(lower) ||
-                                u.DisplayName.ToLower().Contains(lower))
+                    .Where(u =>
+                        (u.Username ?? string.Empty).ToLower().Contains(lower) ||
+                        (u.DisplayName ?? string.Empty).ToLower().Contains(lower))
                     .OrderBy(u => u.DisplayName)
                     .ToList();
         }

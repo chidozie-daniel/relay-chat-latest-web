@@ -9,12 +9,16 @@ namespace RelayChat.Web
         protected global::System.Web.UI.WebControls.HiddenField hfCurrentUserInitials;
         protected global::System.Web.UI.WebControls.HiddenField hfCurrentUserColor;
         protected global::System.Web.UI.WebControls.HiddenField hfCurrentUserRole;
+        protected global::System.Web.UI.WebControls.HiddenField hfSelectedConvoType;
+        protected global::System.Web.UI.WebControls.HiddenField hfSelectedConvoId;
 
         // Hidden postback buttons
         protected global::System.Web.UI.WebControls.Button btnLoadConvo;
         protected global::System.Web.UI.WebControls.Button btnReact;
         protected global::System.Web.UI.WebControls.Button btnLoadThread;
         protected global::System.Web.UI.WebControls.Button btnDeleteMsg;
+        protected global::System.Web.UI.WebControls.LinkButton btnMarkAllRead;
+        protected global::System.Web.UI.WebControls.Button btnUpdatePresence;
 
         // Rail
         protected global::System.Web.UI.UpdatePanel upRail;
@@ -23,12 +27,12 @@ namespace RelayChat.Web
         protected global::System.Web.UI.WebControls.Literal litFooterAvatar;
         protected global::System.Web.UI.WebControls.Literal litFooterName;
         protected global::System.Web.UI.WebControls.HyperLink lnkAdmin;
-        protected global::System.Web.UI.WebControls.LinkButton btnSettings;
         protected global::System.Web.UI.WebControls.LinkButton btnLogout;
 
         // Notification tray
         protected global::System.Web.UI.UpdatePanel upNotifs;
         protected global::System.Web.UI.WebControls.Repeater rptNotifs;
+        protected global::System.Web.UI.WebControls.Panel pnlNoNotifications;
 
         // Messages
         protected global::System.Web.UI.UpdatePanel upMessages;

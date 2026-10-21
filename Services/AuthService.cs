@@ -42,20 +42,35 @@ namespace RelayChat.Web.Services
         /// <summary>Create a new user account after all uniqueness checks.</summary>
         public AuthResult Register(string username, string email, string displayName, string plainTextPassword)
         {
-            if (_users.IsUsernameTaken(username))
+            if (string.IsNullOrWhiteSpace(username) ||
+                string.IsNullOrWhiteSpace(email) ||
+                string.IsNullOrWhiteSpace(displayName) ||
+                string.IsNullOrWhiteSpace(plainTextPassword))
+            {
+                return AuthResult.Failure("Please enter a valid username, email, display name, and password.");
+            }
+
+            var normalizedUsername = username.Trim();
+            var normalizedEmail = email.Trim();
+            var normalizedDisplayName = displayName.Trim();
+
+            if (!normalizedEmail.Contains("@"))
+                return AuthResult.Failure("Please enter a valid email address.");
+
+            if (_users.IsUsernameTaken(normalizedUsername))
                 return AuthResult.Failure("That username is already taken.");
 
-            if (_users.IsEmailTaken(email))
+            if (_users.IsEmailTaken(normalizedEmail))
                 return AuthResult.Failure("An account with that email already exists.");
 
             var user = new User
             {
-                Username     = username.Trim(),
-                Email        = email.Trim().ToLower(),
-                DisplayName  = displayName.Trim(),
+                Username     = normalizedUsername,
+                Email        = normalizedEmail.ToLower(),
+                DisplayName  = normalizedDisplayName,
                 PasswordHash = _hasher.HashPassword(plainTextPassword),
                 Role         = "User",
-                AvatarColor  = PickAvatarColor(username),
+                AvatarColor  = PickAvatarColor(normalizedUsername),
                 IsOnline     = false,
                 IsSuspended  = false,
                 CreatedAt    = DateTime.UtcNow
@@ -68,7 +83,8 @@ namespace RelayChat.Web.Services
         private static string PickAvatarColor(string username)
         {
             string[] palette = { "#5B5FEF", "#17BFB0", "#E4572E", "#9B51E0", "#F0A63E", "#EF4B5F" };
-            int idx = Math.Abs(username.GetHashCode()) % palette.Length;
+            string safeUser = username ?? string.Empty;
+            int idx = Math.Abs(safeUser.GetHashCode()) % palette.Length;
             return palette[idx];
         }
     }

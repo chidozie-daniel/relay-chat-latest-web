@@ -26,19 +26,19 @@
       </div>
     </div>
     <div class="px-2 mt-2 flex-grow-1">
-      <button class="admin-nav-link active" data-panel="dashboard">
+      <button type="button" class="admin-nav-link active" data-panel="dashboard" aria-current="page">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg> Dashboard
       </button>
-      <button class="admin-nav-link" data-panel="users">
+      <button type="button" class="admin-nav-link" data-panel="users">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg> Users
       </button>
-      <button class="admin-nav-link" data-panel="channels">
+      <button type="button" class="admin-nav-link" data-panel="channels">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> Channels
       </button>
-      <button class="admin-nav-link" data-panel="moderation">
+      <button type="button" class="admin-nav-link" data-panel="moderation">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/></svg> Moderation
       </button>
-      <button class="admin-nav-link" data-panel="logs">
+      <button type="button" class="admin-nav-link" data-panel="logs">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/></svg> Activity Log
       </button>
     </div>
@@ -56,7 +56,7 @@
         <h1 class="font-display fw-bold mb-0" style="font-size:1.5rem;" id="adminPanelTitle">Dashboard</h1>
         <p style="color:var(--ash-500);font-size:.85rem;margin:0;" id="adminPanelSub">Platform overview for Relay Chat</p>
       </div>
-      <button class="icon-btn d-md-none" id="adminMenuBtn" style="border:1px solid var(--line);">
+      <button type="button" class="icon-btn admin-menu-toggle" id="adminMenuBtn" aria-label="Toggle administrator navigation" aria-expanded="false" style="border:1px solid var(--line);">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
       </button>
     </div>
@@ -198,7 +198,7 @@
             <asp:Repeater ID="rptFlagged" runat="server" OnItemCommand="rptFlagged_ItemCommand">
               <ItemTemplate>
                 <div class="d-flex align-items-start gap-3 p-3 rounded-3 mb-2" style="background:var(--paper-50);border:1px solid var(--line);">
-                  <div class="avatar" style="width:36px;height:36px;background:<%# Eval("SenderColor") %>;font-size:.8rem;flex-shrink:0;">
+                  <div class="avatar" style="width:36px;height:36px;font-size:.8rem;flex-shrink:0;" data-bg="<%# Eval("SenderColor") %>">
                     <%# Eval("SenderInitials") %>
                   </div>
                   <div class="flex-grow-1" style="min-width:0;">
@@ -264,6 +264,12 @@
 </form>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
+/* Apply data-bg colours set by server-side data binding */
+document.querySelectorAll('[data-bg]').forEach(function(el) {
+    var bg = /** @type {HTMLElement} */ (el).dataset.bg;
+    if (bg) /** @type {HTMLElement} */ (el).style.background = bg;
+});
+/** @type {Record<string, string[]>} */
 var PANEL_TITLES = {
     dashboard:  ['Dashboard',    'Platform overview for Relay Chat'],
     users:      ['Users',        'Manage registered accounts'],
@@ -271,24 +277,58 @@ var PANEL_TITLES = {
     moderation: ['Moderation',   'Review flagged and reported content'],
     logs:       ['Activity Log', 'Administrative action history']
 };
+var adminMenuBtn = document.getElementById('adminMenuBtn');
 /* Admin panel nav */
+function showAdminPanel(panelId, updateHistory) {
+    if (!Object.prototype.hasOwnProperty.call(PANEL_TITLES, panelId)) return;
+
+    document.querySelectorAll('.admin-nav-link[data-panel]').forEach(function(link) {
+        var selected = link.dataset.panel === panelId;
+        link.classList.toggle('active', selected);
+        if (selected) link.setAttribute('aria-current', 'page');
+        else link.removeAttribute('aria-current');
+    });
+    document.querySelectorAll('.admin-panel').forEach(function(panel) {
+        var selected = panel.id === 'panel-' + panelId;
+        panel.classList.toggle('active', selected);
+        panel.setAttribute('aria-hidden', selected ? 'false' : 'true');
+    });
+
+    var info = PANEL_TITLES[panelId];
+    var titleEl = document.getElementById('adminPanelTitle');
+    if (titleEl) titleEl.textContent = info[0];
+    var sub = document.getElementById('adminPanelSub');
+    if (sub) sub.textContent = info[1];
+
+    var nav = document.getElementById('adminNav');
+    if (nav) nav.classList.remove('show');
+    if (adminMenuBtn) adminMenuBtn.setAttribute('aria-expanded', 'false');
+
+    if (updateHistory && window.location.hash !== '#' + panelId)
+        window.history.pushState({ adminPanel: panelId }, '', '#' + panelId);
+}
 document.querySelectorAll('.admin-nav-link[data-panel]').forEach(function(btn) {
     btn.addEventListener('click', function() {
-        document.querySelectorAll('.admin-nav-link[data-panel]').forEach(function(b) { b.classList.remove('active'); });
-        btn.classList.add('active');
-        document.querySelectorAll('.admin-panel').forEach(function(p) { p.classList.remove('active'); });
-        document.getElementById('panel-' + btn.dataset.panel).classList.add('active');
-        var info = PANEL_TITLES[btn.dataset.panel] || [btn.dataset.panel, ''];
-        document.getElementById('adminPanelTitle').textContent = info[0];
-        var sub = document.getElementById('adminPanelSub');
-        if (sub) sub.textContent = info[1];
-        document.getElementById('adminNav').classList.remove('show');
+        showAdminPanel(btn.dataset.panel || '', true);
     });
 });
-/* Mobile menu */
-document.getElementById('adminMenuBtn').addEventListener('click', function() {
-    document.getElementById('adminNav').classList.toggle('show');
+window.addEventListener('popstate', function() {
+    showAdminPanel(window.location.hash.substring(1) || 'dashboard', false);
 });
+var initialAdminPanel = window.location.hash.substring(1);
+showAdminPanel(Object.prototype.hasOwnProperty.call(PANEL_TITLES, initialAdminPanel)
+    ? initialAdminPanel
+    : 'dashboard', false);
+/* Mobile menu */
+if (adminMenuBtn) {
+    adminMenuBtn.addEventListener('click', function() {
+        var nav = document.getElementById('adminNav');
+        if (nav) {
+            var isOpen = nav.classList.toggle('show');
+            adminMenuBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+        }
+    });
+}
 </script>
 </body>
 </html>

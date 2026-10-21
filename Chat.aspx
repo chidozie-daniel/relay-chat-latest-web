@@ -20,6 +20,8 @@
 <asp:HiddenField ID="hfCurrentUserInitials" runat="server" />
 <asp:HiddenField ID="hfCurrentUserColor"    runat="server" />
 <asp:HiddenField ID="hfCurrentUserRole"     runat="server" />
+<asp:HiddenField ID="hfSelectedConvoType"   runat="server" />
+<asp:HiddenField ID="hfSelectedConvoId"     runat="server" />
 <!-- Hidden postback button — triggered by JS selectConvo() to load a conversation -->
 <asp:Button ID="btnLoadConvo"   runat="server" style="display:none;" OnClick="btnLoadConvo_Click"   CausesValidation="false" />
 <!-- Hidden postback button — triggered by JS postReaction() -->
@@ -28,6 +30,8 @@
 <asp:Button ID="btnLoadThread"  runat="server" style="display:none;" OnClick="btnLoadThread_Click"  CausesValidation="false" />
 <!-- Hidden postback button — triggered by JS deleteMessage() -->
 <asp:Button ID="btnDeleteMsg"   runat="server" style="display:none;" OnClick="btnDeleteMsg_Click"   CausesValidation="false" />
+<asp:LinkButton ID="btnMarkAllRead" runat="server" style="display:none;" OnClick="btnMarkAllRead_Click" CausesValidation="false" />
+<asp:Button ID="btnUpdatePresence" runat="server" style="display:none;" OnClick="btnUpdatePresence_Click" CausesValidation="false" />
 
 <div class="app-shell">
 
@@ -40,45 +44,12 @@
         </div>
         <span class="brand-word text-white fs-5 flex-grow-1">Relay</span>
         <div class="position-relative">
-          <button class="icon-btn-dark" id="notifBtn" aria-label="Notifications">
+          <button type="button" class="icon-btn-dark" id="notifBtn" aria-label="Notifications">
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
             <span id="notifDot" style="position:absolute;top:5px;right:5px;width:7px;height:7px;border-radius:50%;background:var(--signal-500);border:1.5px solid var(--ink-950);display:none;"></span>
           </button>
-          <!-- Notification tray -->
-          <div class="notif-tray d-none" id="notifTray">
-            <div class="d-flex align-items-center justify-content-between p-3" style="border-bottom:1px solid var(--line);">
-              <strong class="font-display" style="font-size:.9rem;">Notifications</strong>
-              <button id="markAllReadBtn" class="icon-btn" style="width:auto;height:auto;padding:.2rem .6rem;font-size:.75rem;font-family:var(--font-display);font-weight:600;color:var(--signal-500);">Mark all read</button>
-            </div>
-            <asp:UpdatePanel ID="upNotifs" runat="server" UpdateMode="Conditional">
-              <ContentTemplate>
-                <div style="max-height:340px;overflow-y:auto;" class="thin-scroll" id="notifList">
-                  <asp:Repeater ID="rptNotifs" runat="server">
-                    <ItemTemplate>
-                      <div class="notif-row <%# (bool)Eval("IsRead") ? "" : "unread" %>"
-                           data-convo-type="<%# Eval("ConvoType") %>"
-                           data-convo-id="<%# Eval("ConvoId") %>">
-                        <div class="avatar" style="width:34px;height:34px;background:<%# Eval("SenderColor") %>;font-size:.78rem;flex-shrink:0;">
-                          <%# Eval("SenderInitials") %>
-                        </div>
-                        <div style="min-width:0;flex:1;">
-                          <div class="d-flex justify-content-between">
-                            <span style="font-size:.8rem;font-weight:600;"><%# System.Web.HttpUtility.HtmlEncode(Eval("FromName").ToString()) %></span>
-                            <span class="font-mono" style="font-size:.66rem;color:var(--ash-400);"><%# Eval("TimeAgo") %></span>
-                          </div>
-                          <div style="font-size:.78rem;color:var(--ash-500);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
-                            <%# System.Web.HttpUtility.HtmlEncode(Eval("PreviewText").ToString()) %>
-                          </div>
-                        </div>
-                      </div>
-                    </ItemTemplate>
-                  </asp:Repeater>
-                </div>
-              </ContentTemplate>
-            </asp:UpdatePanel>
-          </div>
         </div>
-        <button class="icon-btn-dark" id="newConvoBtn" aria-label="New conversation"
+        <button type="button" class="icon-btn-dark" id="newConvoBtn" aria-label="New conversation"
             data-bs-toggle="modal" data-bs-target="#newConvoModal">
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg>
         </button>
@@ -92,10 +63,10 @@
 
       <!-- Filter tabs -->
       <div class="rail-tabs">
-        <button class="rail-tab active" data-filter="all">All</button>
-        <button class="rail-tab" data-filter="direct">DMs</button>
-        <button class="rail-tab" data-filter="channels">Channels</button>
-        <button class="rail-tab" data-filter="unread">Unread</button>
+        <button type="button" class="rail-tab active" data-filter="all">All</button>
+        <button type="button" class="rail-tab" data-filter="direct">DMs</button>
+        <button type="button" class="rail-tab" data-filter="channels">Channels</button>
+        <button type="button" class="rail-tab" data-filter="unread">Unread</button>
       </div>
     </div>
 
@@ -170,6 +141,9 @@
           <div class="d-none" id="railEmptyState"></div>
         </div>
       </ContentTemplate>
+      <Triggers>
+        <asp:AsyncPostBackTrigger ControlID="btnLoadConvo" EventName="Click" />
+      </Triggers>
     </asp:UpdatePanel>
 
     <!-- Rail footer -->
@@ -183,13 +157,13 @@
         <div class="status-text">● Active</div>
       </div>
       <asp:HyperLink ID="lnkAdmin" runat="server" NavigateUrl="~/Admin/AdminDashboard.aspx"
-          CssClass="icon-btn-dark" title="Admin console" Visible="false">
+          CssClass="icon-btn-dark" title="Admin dashboard" aria-label="Open administrator dashboard" Visible="false">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/></svg>
       </asp:HyperLink>
-      <asp:LinkButton ID="btnSettings" runat="server" CssClass="icon-btn-dark" title="Settings"
-          data-bs-toggle="modal" data-bs-target="#settingsModal" OnClientClick="return false;">
+      <button type="button" class="icon-btn-dark" title="Settings"
+          data-bs-toggle="modal" data-bs-target="#settingsModal">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9"/></svg>
-      </asp:LinkButton>
+      </button>
       <asp:LinkButton ID="btnLogout" runat="server" CssClass="icon-btn-dark" title="Log out"
           OnClick="btnLogout_Click" CausesValidation="false" style="background:none;border:none;">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
@@ -275,6 +249,9 @@
           </div>
         </div>
       </ContentTemplate>
+      <Triggers>
+        <asp:AsyncPostBackTrigger ControlID="btnLoadConvo" EventName="Click" />
+      </Triggers>
     </asp:UpdatePanel>
 
     <!-- Message composer -->
@@ -331,8 +308,56 @@
       <ContentTemplate>
         <asp:Literal ID="litInfoPanel" runat="server" />
       </ContentTemplate>
+      <Triggers>
+        <asp:AsyncPostBackTrigger ControlID="btnLoadConvo" EventName="Click" />
+      </Triggers>
     </asp:UpdatePanel>
   </aside>
+</div>
+
+<!-- Notification tray is outside transformed/overflow-clipping sidebar containers. -->
+<div class="notif-tray d-none" id="notifTray">
+  <div class="d-flex align-items-center justify-content-between p-3" style="border-bottom:1px solid var(--line);">
+    <strong class="font-display" style="font-size:.9rem;">Notifications</strong>
+    <button type="button" id="markAllReadBtn" class="icon-btn" style="width:auto;height:auto;padding:.2rem .6rem;font-size:.75rem;font-family:var(--font-display);font-weight:600;color:var(--signal-500);">Mark all read</button>
+  </div>
+  <asp:UpdatePanel ID="upNotifs" runat="server" UpdateMode="Conditional">
+    <ContentTemplate>
+      <div style="max-height:340px;overflow-y:auto;" class="thin-scroll" id="notifList">
+        <asp:Repeater ID="rptNotifs" runat="server">
+          <ItemTemplate>
+            <div class="notif-row <%# (bool)Eval("IsRead") ? "" : "unread" %>"
+                 role="button" tabindex="0"
+                 data-message-id="<%# Eval("MessageId") %>"
+                 data-is-mention="<%# Eval("IsMention").ToString().ToLowerInvariant() %>"
+                 data-convo-type="<%# Eval("ConvoType") %>"
+                 data-convo-id="<%# Eval("ConvoId") %>">
+              <div class="avatar" style="width:34px;height:34px;font-size:.78rem;flex-shrink:0;" data-bg="<%# Eval("SenderColor") %>">
+                <%# Eval("SenderInitials") %>
+              </div>
+              <div style="min-width:0;flex:1;">
+                <div class="d-flex justify-content-between">
+                  <span style="font-size:.8rem;font-weight:600;"><%# System.Web.HttpUtility.HtmlEncode(Eval("FromName").ToString()) %></span>
+                  <span class="font-mono" style="font-size:.66rem;color:var(--ash-400);"><%# Eval("TimeAgo") %></span>
+                </div>
+                <div class="notif-preview" style="font-size:.78rem;color:var(--ash-500);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                  <%# System.Web.HttpUtility.HtmlEncode(Eval("PreviewText").ToString()) %>
+                </div>
+              </div>
+            </div>
+          </ItemTemplate>
+        </asp:Repeater>
+        <asp:Panel ID="pnlNoNotifications" runat="server" CssClass="notif-empty-state"
+            style="padding:1.5rem 1rem;text-align:center;font-size:.82rem;color:var(--ash-500);">
+          You're all caught up.
+        </asp:Panel>
+      </div>
+    </ContentTemplate>
+    <Triggers>
+      <asp:AsyncPostBackTrigger ControlID="btnLoadConvo" EventName="Click" />
+      <asp:AsyncPostBackTrigger ControlID="btnMarkAllRead" EventName="Click" />
+    </Triggers>
+  </asp:UpdatePanel>
 </div>
 
 <!-- ── MODALS ──────────────────────────────────────────────────────── -->
@@ -346,8 +371,8 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <ul class="nav nav-pills gap-2 px-3 pt-3" id="newModalTabs">
-        <li class="nav-item"><button class="nav-link active rounded-pill" data-target="tab-dm" style="font-family:var(--font-display);font-size:.8rem;font-weight:600;">Direct message</button></li>
-        <li class="nav-item"><button class="nav-link rounded-pill" data-target="tab-ch" style="font-family:var(--font-display);font-size:.8rem;font-weight:600;">Create channel</button></li>
+        <li class="nav-item"><button type="button" class="nav-link active rounded-pill" data-target="tab-dm" style="font-family:var(--font-display);font-size:.8rem;font-weight:600;">Direct message</button></li>
+        <li class="nav-item"><button type="button" class="nav-link rounded-pill" data-target="tab-ch" style="font-family:var(--font-display);font-size:.8rem;font-weight:600;">Create channel</button></li>
       </ul>
       <div class="modal-body pt-3">
 
@@ -361,11 +386,11 @@
               <div style="max-height:280px;overflow-y:auto;" class="thin-scroll">
                 <asp:Repeater ID="rptUserSearch" runat="server" OnItemCommand="rptUserSearch_ItemCommand">
                   <ItemTemplate>
-                    <asp:Button ID="btnSelectUser" runat="server" CssClass="rail-item w-100 mb-1"
+                    <asp:LinkButton ID="btnSelectUser" runat="server" CssClass="rail-item w-100 mb-1"
                         CommandName="StartDM" CommandArgument='<%# Eval("UserId") %>'
-                        style="color:var(--ash-800);"
-                        OnClientClick="bootstrap.Modal.getInstance(document.getElementById('newConvoModal')).hide();"
-                        Text='<%# BuildUserSearchItem(Eval("DisplayName").ToString(), Eval("Username").ToString(), Eval("GetInitials()").ToString(), Eval("GetAvatarColor()").ToString(), (bool)Eval("IsOnline")) %>' />
+                        style="color:var(--ash-800);" CausesValidation="false">
+                      <%# BuildUserSearchItem(Eval("DisplayName").ToString(), Eval("Username").ToString(), Eval("GetInitials()").ToString(), Eval("GetAvatarColor()").ToString(), (bool)Eval("IsOnline")) %>
+                    </asp:LinkButton>
                   </ItemTemplate>
                 </asp:Repeater>
               </div>
@@ -390,8 +415,7 @@
 
           <asp:Button ID="btnCreateChannel" runat="server" Text="Create channel"
               CssClass="btn-signal w-100" style="padding:.65rem;"
-              OnClick="btnCreateChannel_Click" ValidationGroup="ChannelGroup"
-              OnClientClick="bootstrap.Modal.getInstance(document.getElementById('newConvoModal'))?.hide();" />
+              OnClick="btnCreateChannel_Click" ValidationGroup="ChannelGroup" />
         </div>
       </div>
     </div>
@@ -399,18 +423,19 @@
 </div>
 
 <!-- Settings modal -->
-<div class="modal fade" id="settingsModal" tabindex="-1">
-  <div class="modal-dialog modal-dialog-centered modal-lg">
+<div class="modal fade" id="settingsModal" tabindex="-1" aria-labelledby="settingsModalTitle" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg settings-dialog">
     <div class="modal-content" style="border-radius:var(--r-lg);border:none;overflow:hidden;">
-      <div class="d-flex" style="min-height:460px;">
-        <div style="width:190px;flex-shrink:0;background:var(--paper-50);border-right:1px solid var(--line);padding:1rem 0;">
+      <div class="settings-layout">
+        <div class="settings-sidebar">
+          <h5 id="settingsModalTitle" class="visually-hidden">Settings</h5>
           <p class="px-3 mb-3" style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--ash-400);font-family:var(--font-display);">Settings</p>
-          <button class="settings-tab-btn active" data-tab="profile">Profile</button>
-          <button class="settings-tab-btn" data-tab="notifications">Notifications</button>
-          <button class="settings-tab-btn" data-tab="appearance">Appearance</button>
-          <button class="settings-tab-btn" data-tab="privacy">Privacy</button>
+          <button type="button" class="settings-tab-btn active" data-tab="profile">Profile</button>
+          <button type="button" class="settings-tab-btn" data-tab="notifications">Notifications</button>
+          <button type="button" class="settings-tab-btn" data-tab="appearance">Appearance</button>
+          <button type="button" class="settings-tab-btn" data-tab="privacy">Privacy</button>
         </div>
-        <div class="flex-grow-1 p-4" style="overflow-y:auto;max-height:600px;">
+        <div class="settings-content p-4">
           <button type="button" class="btn-close float-end" data-bs-dismiss="modal"></button>
 
           <!-- Profile panel -->
@@ -440,6 +465,9 @@
                   ✅ Profile saved.
                 </asp:Panel>
               </ContentTemplate>
+              <Triggers>
+                <asp:AsyncPostBackTrigger ControlID="btnUpdatePresence" EventName="Click" />
+              </Triggers>
             </asp:UpdatePanel>
           </div>
 
@@ -451,7 +479,7 @@
               <button type="button" class="relay-switch on" id="swToasts" data-toggle="toasts"></button>
             </div>
             <div class="d-flex align-items-center justify-content-between p-3 rounded-3 mb-2" style="background:var(--paper-50);border:1px solid var(--line);">
-              <div><div style="font-weight:600;font-size:.85rem;">Sound alerts</div><div style="font-size:.78rem;color:var(--ash-500);">Play a sound for new messages (browser permitting)</div></div>
+              <div><div style="font-weight:600;font-size:.85rem;">Sound alerts</div><div style="font-size:.78rem;color:var(--ash-500);">Play a sound for new messages</div></div>
               <button type="button" class="relay-switch" id="swSound" data-toggle="sound"></button>
             </div>
             <div class="d-flex align-items-center justify-content-between p-3 rounded-3 mb-2" style="background:var(--paper-50);border:1px solid var(--line);">
@@ -487,7 +515,7 @@
               <button type="button" class="relay-switch on" id="swOnlineStatus" data-toggle="onlinestatus"></button>
             </div>
             <div class="d-flex align-items-center justify-content-between p-3 rounded-3 mb-2" style="background:var(--paper-50);border:1px solid var(--line);">
-              <div><div style="font-weight:600;font-size:.85rem;">Message previews in notifications</div><div style="font-size:.78rem;color:var(--ash-500);">Show message text in browser notifications</div></div>
+              <div><div style="font-weight:600;font-size:.85rem;">Message previews in notifications</div><div style="font-size:.78rem;color:var(--ash-500);">Include message text in browser notifications</div></div>
               <button type="button" class="relay-switch on" id="swPreviews" data-toggle="previews"></button>
             </div>
           </div>
@@ -545,25 +573,93 @@ var CU = {
 
 /* ── State ──────────────────────────────────────────────────────────── */
 var activeType = null, activeId = null;
-var toastsEnabled = true, readReceiptsEnabled = true;
+var settingsStorageKey = 'relay-chat-settings-v1';
+var defaultSettings = {
+    toasts: true, sound: false, mentions: false,
+    receipts: true, compact: false, onlinestatus: true, previews: true, fontSize: '1'
+};
+var userSettings = loadUserSettings();
+var toastsEnabled = userSettings.toasts;
+var readReceiptsEnabled = userSettings.receipts;
 var mutedConvos = {};   // key "type_id" → true
 var pinnedConvos = {};  // key "type_id" → true
 var activeFilter = 'all';
 
+function loadUserSettings() {
+    var serialized;
+    try {
+        serialized = window.localStorage.getItem(settingsStorageKey);
+    } catch (error) {
+        console.warn('Unable to read saved Relay settings.', error);
+        return Object.assign({}, defaultSettings);
+    }
+    if (!serialized) return Object.assign({}, defaultSettings);
+    try {
+        var parsed = Object.assign({}, defaultSettings, JSON.parse(serialized));
+        if (['0.85', '1', '1.18'].indexOf(String(parsed.fontSize)) < 0)
+            parsed.fontSize = defaultSettings.fontSize;
+        Object.keys(defaultSettings).forEach(function(key) {
+            if (key !== 'fontSize') parsed[key] = parsed[key] === true;
+        });
+        return parsed;
+    } catch (error) {
+        console.warn('Saved Relay settings could not be parsed.', error);
+        return Object.assign({}, defaultSettings);
+    }
+}
+function saveUserSettings() {
+    try {
+        window.localStorage.setItem(settingsStorageKey, JSON.stringify(userSettings));
+    } catch (error) {
+        console.warn('Unable to save Relay settings.', error);
+    }
+}
+function applyUserSettings() {
+    document.querySelectorAll('.relay-switch[data-toggle]').forEach(function(sw) {
+        sw.classList.toggle('on', !!userSettings[sw.dataset.toggle]);
+    });
+    toastsEnabled = !!userSettings.toasts;
+    readReceiptsEnabled = !!userSettings.receipts;
+    document.body.classList.toggle('hide-receipts', !readReceiptsEnabled);
+    document.body.classList.toggle('compact-mode', !!userSettings.compact);
+    document.body.classList.toggle('mentions-only', !!userSettings.mentions);
+    updateOwnPresenceUI(!!userSettings.onlinestatus);
+    document.documentElement.style.setProperty('--chat-font-scale', userSettings.fontSize);
+    document.querySelectorAll('[data-size]').forEach(function(button) {
+        var selected = button.dataset.size === userSettings.fontSize;
+        button.classList.toggle('btn-signal', selected);
+        button.classList.toggle('btn-ghost', !selected);
+    });
+    filterNotificationRows();
+}
+
 /* ── Conversation selection ─────────────────────────────────────────── */
-function selectConvo(type, id) {
+function activateConvoUI(type, id) {
     activeType = type; activeId = id;
     document.getElementById('composerWrap').style.display = 'block';
     renderConvoActions(type, id);
+    if (window.innerWidth <= 900) {
+        var rail = document.getElementById('rail');
+        var convoCol = document.getElementById('convoCol');
+        if (rail) rail.classList.add('hide-mobile');
+        if (convoCol) convoCol.classList.add('show-mobile');
+    }
+}
+function closeNewConvoModal() {
+    var modal = document.getElementById('newConvoModal');
+    if (modal) bootstrap.Modal.getOrCreateInstance(modal).hide();
+}
+if (window.pendingConvoActivation) {
+    activateConvoUI(window.pendingConvoActivation.type, window.pendingConvoActivation.id);
+    closeNewConvoModal();
+    window.pendingConvoActivation = null;
+}
+function selectConvo(type, id) {
+    activateConvoUI(type, id);
     showMessageSkeleton();
 
-    // Post to server to load that conversation
-    var form = document.getElementById('form1');
-    var hfType = document.createElement('input');
-    hfType.type = 'hidden'; hfType.name = 'hdnConvoType'; hfType.value = type;
-    var hfId = document.createElement('input');
-    hfId.type = 'hidden'; hfId.name = 'hdnConvoId'; hfId.value = id;
-    form.appendChild(hfType); form.appendChild(hfId);
+    document.getElementById('<%= hfSelectedConvoType.ClientID %>').value = type;
+    document.getElementById('<%= hfSelectedConvoId.ClientID %>').value = id;
     __doPostBack('<%= btnLoadConvo.UniqueID %>', type + '_' + id);
 }
 
@@ -621,14 +717,14 @@ function toggleInConvoSearch() {
     else
         document.getElementById('inConvoSearchInput').value = '';
 }
-document.getElementById('inConvoSearchInput').addEventListener('input', function() {
+document.getElementById('inConvoSearchInput') && document.getElementById('inConvoSearchInput').addEventListener('input', function() {
     var q = this.value.trim().toLowerCase();
     var visible = 0;
     document.querySelectorAll('#msgScroll .msg-row[data-msg-id]').forEach(function(row) {
         var bubble = row.querySelector('.bubble');
         if (!bubble) return;
         var show = (!q || bubble.textContent.toLowerCase().includes(q));
-        row.style.display = show ? '' : 'none';
+        /** @type {HTMLElement} */ (row).style.display = show ? '' : 'none';
         if (show) visible++;
     });
     var empty = document.getElementById('searchEmptyState');
@@ -637,11 +733,12 @@ document.getElementById('inConvoSearchInput').addEventListener('input', function
 
 /* ── Rail view: tab filter + search + empty state ───────────────────── */
 function refreshRailView() {
-    var q = (document.getElementById('railSearch').value || '').trim().toLowerCase();
+    var q = (document.getElementById('railSearch') ? /** @type {HTMLInputElement} */ (document.getElementById('railSearch')).value : '').trim().toLowerCase();
     var visible = 0;
     document.querySelectorAll('#railList .rail-item').forEach(function(item) {
-        var type = item.dataset.type || '';
-        var unread = parseInt(item.dataset.unread || '0', 10);
+        var el = /** @type {HTMLElement} */ (item);
+        var type = el.dataset.type || '';
+        var unread = parseInt(el.dataset.unread || '0', 10);
         var nameEl = item.querySelector('.name');
         var name = nameEl ? nameEl.textContent.toLowerCase() : '';
         var passFilter = (activeFilter === 'all') ||
@@ -650,7 +747,7 @@ function refreshRailView() {
                          (activeFilter === 'unread'   && unread > 0);
         var passSearch = (q === '' || name.indexOf(q) !== -1);
         var show = passFilter && passSearch;
-        item.style.display = show ? '' : 'none';
+        el.style.display = show ? '' : 'none';
         if (show) visible++;
     });
     var empty = document.getElementById('railEmptyState');
@@ -667,14 +764,16 @@ function refreshRailView() {
     }
 }
 document.querySelectorAll('.rail-tab').forEach(function(tab) {
-    tab.addEventListener('click', function() {
+    tab.addEventListener('click', function(event) {
+        event.preventDefault();
         document.querySelectorAll('.rail-tab').forEach(function(t) { t.classList.remove('active'); });
         tab.classList.add('active');
-        activeFilter = tab.dataset.filter;
+        activeFilter = /** @type {HTMLElement} */ (tab).dataset.filter || 'all';
         refreshRailView();
     });
 });
-document.getElementById('railSearch').addEventListener('input', refreshRailView);
+var railSearchEl = document.getElementById('railSearch');
+if (railSearchEl) railSearchEl.addEventListener('input', refreshRailView);
 
 /* ── Rail sections: collapse + hide-when-empty ──────────────────────── */
 function toggleRailSection(name) {
@@ -698,7 +797,7 @@ function applyPinned() {
     var count = 0;
     Object.keys(pinnedConvos).forEach(function(key) {
         if (!pinnedConvos[key]) return;
-        var item = document.querySelector('#railList .rail-item[data-id="' + key + '"]');
+        var item = /** @type {HTMLElement|null} */ (document.querySelector('#railList .rail-item[data-id="' + key + '"]'));
         if (item) { list.appendChild(item); count++; }
     });
     section.style.display = count ? '' : 'none';
@@ -711,10 +810,11 @@ function muteIconHtml() {
 }
 function applyMuteFlags() {
     document.querySelectorAll('#railList .rail-item').forEach(function(item) {
+        var el = /** @type {HTMLElement} */ (item);
         var nameEl = item.querySelector('.name');
         if (!nameEl) return;
         var flag = nameEl.querySelector('.mute-flag');
-        if (mutedConvos[item.dataset.id]) {
+        if (mutedConvos[el.dataset.id || '']) {
             if (!flag) nameEl.insertAdjacentHTML('beforeend', muteIconHtml());
         } else if (flag) {
             flag.remove();
@@ -736,36 +836,165 @@ function showMessageSkeleton() {
 }
 
 /* ── Notification tray ──────────────────────────────────────────────── */
-document.getElementById('notifBtn').addEventListener('click', function(e) {
+var notifBtn = document.getElementById('notifBtn');
+function positionNotificationTray() {
+    var tray = document.getElementById('notifTray');
+    if (!tray || !notifBtn || tray.classList.contains('d-none')) return;
+    var buttonRect = notifBtn.getBoundingClientRect();
+    var width = tray.getBoundingClientRect().width;
+    var left = Math.max(12, Math.min(buttonRect.left, window.innerWidth - width - 12));
+    tray.style.left = left + 'px';
+    tray.style.right = 'auto';
+    tray.style.top = Math.max(12, buttonRect.bottom + 8) + 'px';
+    var trayRect = tray.getBoundingClientRect();
+    if (trayRect.bottom > window.innerHeight - 12) {
+        tray.style.top = Math.max(12, buttonRect.top - trayRect.height - 8) + 'px';
+    }
+    if (tray.getBoundingClientRect().bottom > window.innerHeight - 12)
+        tray.style.top = Math.max(12, window.innerHeight - tray.offsetHeight - 12) + 'px';
+}
+if (notifBtn) notifBtn.addEventListener('click', function(e) {
     e.stopPropagation();
-    document.getElementById('notifTray').classList.toggle('d-none');
+    var tray = document.getElementById('notifTray');
+    if (tray) {
+        tray.classList.toggle('d-none');
+        positionNotificationTray();
+    }
 });
+window.addEventListener('resize', positionNotificationTray);
 document.addEventListener('click', function(e) {
     var tray = document.getElementById('notifTray');
     if (tray && !tray.classList.contains('d-none') &&
-        !tray.contains(e.target) && e.target.id !== 'notifBtn') {
+        !tray.contains(/** @type {Node} */ (e.target)) &&
+        !(/** @type {HTMLElement} */ (e.target).closest('#notifBtn'))) {
         tray.classList.add('d-none');
     }
 });
-document.getElementById('markAllReadBtn').addEventListener('click', function(e) {
+var markAllReadBtn = document.getElementById('markAllReadBtn');
+if (markAllReadBtn) markAllReadBtn.addEventListener('click', function(e) {
     e.stopPropagation();
-    document.querySelectorAll('#notifList .notif-row.unread').forEach(function(r) {
-        r.classList.remove('unread');
-    });
-    document.getElementById('notifDot').style.display = 'none';
-    showToast('Notifications', 'All marked as read.');
+    e.preventDefault();
+    __doPostBack('<%= btnMarkAllRead.UniqueID %>', '');
 });
 // Click a notification row to navigate to that conversation
-document.getElementById('notifList').addEventListener('click', function(e) {
-    var row = e.target.closest('.notif-row');
+document.addEventListener('click', function(e) {
+    var row = /** @type {HTMLElement} */ (e.target).closest('.notif-row');
     if (!row) return;
-    var ctype = row.dataset.convoType, cid = row.dataset.convoId;
+    var ctype = /** @type {HTMLElement} */ (row).dataset.convoType;
+    var cid = /** @type {HTMLElement} */ (row).dataset.convoId;
     if (ctype && cid && cid !== '0') {
-        document.getElementById('notifTray').classList.add('d-none');
+        var tray = document.getElementById('notifTray');
+        if (tray) tray.classList.add('d-none');
         selectConvo(ctype, cid);
     }
     row.classList.remove('unread');
 });
+document.addEventListener('keydown', function(e) {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    var row = /** @type {HTMLElement} */ (e.target).closest('.notif-row');
+    if (row) {
+        e.preventDefault();
+        row.click();
+    }
+});
+var seenNotificationIds = {};
+var notificationsInitialized = false;
+var notificationAudio = null;
+function filterNotificationRows() {
+    var rows = Array.prototype.slice.call(document.querySelectorAll('#notifList .notif-row'));
+    var visibleRows = 0;
+    rows.forEach(function(row) {
+        var visible = !userSettings.mentions ||
+            row.dataset.convoType !== 'channel' || row.dataset.isMention === 'true';
+        row.style.display = visible ? '' : 'none';
+        if (visible) visibleRows++;
+    });
+    var empty = document.querySelector('#notifList .notif-empty-state');
+    if (empty) {
+        empty.textContent = rows.length && userSettings.mentions && !visibleRows
+            ? 'No channel mentions yet.'
+            : "You're all caught up.";
+        empty.style.display = visibleRows ? 'none' : '';
+    }
+}
+function requestBrowserNotificationPermission() {
+    if (!('Notification' in window)) {
+        showToast('Browser notifications unavailable', 'This browser does not support desktop notifications.');
+        return;
+    }
+    if (Notification.permission === 'default') {
+        Notification.requestPermission().then(function(permission) {
+            if (permission !== 'granted')
+                showToast('Permission not granted', 'Allow browser notifications in your browser settings to receive them.');
+        }).catch(function(error) {
+            console.warn('Unable to request browser notification permission.', error);
+        });
+    } else if (Notification.permission !== 'granted') {
+        showToast('Permission not granted', 'Allow browser notifications in your browser settings to receive them.');
+    }
+}
+function ensureAudioContext() {
+    var AudioContextConstructor = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextConstructor) {
+        showToast('Sound unavailable', 'This browser does not support audio alerts.');
+        return;
+    }
+    if (!notificationAudio) notificationAudio = new AudioContextConstructor();
+    if (notificationAudio.state === 'suspended')
+        notificationAudio.resume().catch(function(error) {
+            console.warn('Unable to resume notification audio.', error);
+        });
+}
+function playNotificationSound() {
+    if (!userSettings.sound) return;
+    ensureAudioContext();
+    if (!notificationAudio || notificationAudio.state !== 'running') return;
+    var oscillator = notificationAudio.createOscillator();
+    var gain = notificationAudio.createGain();
+    oscillator.frequency.value = 880;
+    gain.gain.setValueAtTime(.08, notificationAudio.currentTime);
+    gain.gain.exponentialRampToValueAtTime(.001, notificationAudio.currentTime + .18);
+    oscillator.connect(gain);
+    gain.connect(notificationAudio.destination);
+    oscillator.start();
+    oscillator.stop(notificationAudio.currentTime + .18);
+}
+function checkForNewNotifications() {
+    var rows = Array.prototype.slice.call(document.querySelectorAll('#notifList .notif-row'));
+    if (!notificationsInitialized) {
+        rows.forEach(function(row) { seenNotificationIds[row.dataset.messageId || ''] = true; });
+        notificationsInitialized = true;
+        filterNotificationRows();
+        return;
+    }
+
+    rows.forEach(function(row) {
+        var id = row.dataset.messageId || '';
+        if (!id || seenNotificationIds[id]) return;
+        seenNotificationIds[id] = true;
+        var isMention = row.dataset.isMention === 'true';
+        if (userSettings.mentions && row.dataset.convoType === 'channel' && !isMention) return;
+
+        var sender = row.querySelector('.d-flex span');
+        var preview = row.querySelector('.notif-preview');
+        var title = sender ? sender.textContent.trim() : 'New message';
+        var body = preview ? preview.textContent.trim() : '';
+        if (toastsEnabled) showToast(title, body || 'You have a new message.');
+        playNotificationSound();
+        if (userSettings.previews && 'Notification' in window && Notification.permission === 'granted') {
+            var browserNotification = new Notification(title, {
+                body: body || 'You have a new message.',
+                tag: 'relay-message-' + id
+            });
+            browserNotification.onclick = function() {
+                window.focus();
+                selectConvo(row.dataset.convoType, row.dataset.convoId);
+                browserNotification.close();
+            };
+        }
+    });
+    filterNotificationRows();
+}
 
 /* ── Info panel toggle ──────────────────────────────────────────────── */
 function toggleInfoPanel() {
@@ -775,9 +1004,12 @@ function toggleInfoPanel() {
 }
 
 /* ── Back button (mobile) ───────────────────────────────────────────── */
-document.getElementById('backBtn').addEventListener('click', function() {
-    document.getElementById('rail').classList.remove('hide-mobile');
-    document.getElementById('convoCol').classList.remove('show-mobile');
+var backBtn = document.getElementById('backBtn');
+if (backBtn) backBtn.addEventListener('click', function() {
+    var rail = document.getElementById('rail');
+    var convoCol = document.getElementById('convoCol');
+    if (rail) rail.classList.remove('hide-mobile');
+    if (convoCol) convoCol.classList.remove('show-mobile');
 });
 
 /* ── Settings tabs ──────────────────────────────────────────────────── */
@@ -794,13 +1026,19 @@ document.querySelectorAll('.settings-tab-btn').forEach(function(btn) {
 /* ── Settings toggles ───────────────────────────────────────────────── */
 document.querySelectorAll('.relay-switch[data-toggle]').forEach(function(sw) {
     sw.addEventListener('click', function() {
-        sw.classList.toggle('on');
-        var on = sw.classList.contains('on');
-        switch (sw.dataset.toggle) {
-            case 'toasts':       toastsEnabled      = on; break;
-            case 'receipts':     readReceiptsEnabled = on; document.body.classList.toggle('hide-receipts', !on); break;
-            case 'compact':      document.body.classList.toggle('compact-mode', on); break;
-            case 'onlinestatus': updateOwnPresenceUI(on); break;
+        var key = sw.dataset.toggle;
+        userSettings[key] = !userSettings[key];
+        saveUserSettings();
+        applyUserSettings();
+
+        if (key === 'sound' && userSettings.sound) {
+            ensureAudioContext();
+        }
+        if (key === 'onlinestatus') {
+            __doPostBack('<%= btnUpdatePresence.UniqueID %>', userSettings.onlinestatus ? 'true' : 'false');
+        }
+        if (key === 'previews' && userSettings.previews) {
+            requestBrowserNotificationPermission();
         }
     });
 });
@@ -818,9 +1056,9 @@ document.querySelectorAll('#newModalTabs .nav-link').forEach(function(btn) {
 /* ── Appearance: font size ──────────────────────────────────────────── */
 document.querySelectorAll('[data-size]').forEach(function(btn) {
     btn.addEventListener('click', function() {
-        document.querySelectorAll('[data-size]').forEach(function(b) { b.className = 'btn-ghost flex-grow-1'; });
-        btn.className = 'btn-signal flex-grow-1';
-        document.documentElement.style.setProperty('--chat-font-scale', btn.dataset.size);
+        userSettings.fontSize = btn.dataset.size;
+        saveUserSettings();
+        applyUserSettings();
     });
 });
 
@@ -831,6 +1069,7 @@ function scrollToBottom() {
 }
 function afterAjaxRefresh() {
     scrollToBottom();
+    applyDataBgColors();
     initComposerUI();
     wireHoverBars();
     refreshRailSections();
@@ -838,6 +1077,9 @@ function afterAjaxRefresh() {
     applyMuteFlags();
     refreshRailView();
     updateEmptyState();
+    applyUserSettings();
+    checkForNewNotifications();
+    positionNotificationTray();
 }
 
 /* ── Empty conversation state ───────────────────────────────────────── */
@@ -879,10 +1121,12 @@ function escHtml(s) {
 
 /* ── Mobile: show convo column when a conversation is selected ───────── */
 document.addEventListener('click', function(e) {
-    var item = e.target.closest('.rail-item');
+    var item = /** @type {HTMLElement} */ (e.target).closest('.rail-item');
     if (item && window.innerWidth <= 900) {
-        document.getElementById('rail').classList.add('hide-mobile');
-        document.getElementById('convoCol').classList.add('show-mobile');
+        var rail = document.getElementById('rail');
+        var convoCol = document.getElementById('convoCol');
+        if (rail) rail.classList.add('hide-mobile');
+        if (convoCol) convoCol.classList.add('show-mobile');
     }
 });
 
@@ -923,7 +1167,8 @@ document.addEventListener('click', function(e) {
 });
 
 /* ── Attach button (UI stub — file upload requires separate implementation) */
-document.getElementById('attachBtn').addEventListener('click', function() {
+var attachBtn = document.getElementById('attachBtn');
+if (attachBtn) attachBtn.addEventListener('click', function() {
     showToast('Attachments', 'File upload requires the attachment service (see SRS §FR-MSG-05).');
 });
 
@@ -931,29 +1176,32 @@ document.getElementById('attachBtn').addEventListener('click', function() {
 function wireHoverBars() {
     // React button on hover bar / reaction-add button
     document.querySelectorAll('.msg-hover-react').forEach(function(btn) {
-        if (btn.dataset.wired === '1') return; btn.dataset.wired = '1';
-        btn.addEventListener('click', function(e) {
+        var el = /** @type {HTMLElement} */ (btn);
+        if (el.dataset.wired === '1') return; el.dataset.wired = '1';
+        el.addEventListener('click', function(e) {
             e.stopPropagation();
-            var row = btn.closest('[data-msg-id]');
+            var row = /** @type {HTMLElement} */ (el.closest('[data-msg-id]'));
             if (!row) return;
-            openMiniEmojiPicker(row.dataset.msgId, btn);
+            openMiniEmojiPicker(row.dataset.msgId || '', el);
         });
     });
     // Reply in thread
     document.querySelectorAll('.msg-hover-reply').forEach(function(btn) {
-        if (btn.dataset.wired === '1') return; btn.dataset.wired = '1';
-        btn.addEventListener('click', function(e) {
+        var el = /** @type {HTMLElement} */ (btn);
+        if (el.dataset.wired === '1') return; el.dataset.wired = '1';
+        el.addEventListener('click', function(e) {
             e.stopPropagation();
-            var row = btn.closest('[data-msg-id]');
-            if (row) openThread(row.dataset.msgId);
+            var row = /** @type {HTMLElement} */ (el.closest('[data-msg-id]'));
+            if (row) openThread(row.dataset.msgId || '');
         });
     });
     // More (copy / delete)
     document.querySelectorAll('.msg-hover-more').forEach(function(btn) {
-        if (btn.dataset.wired === '1') return; btn.dataset.wired = '1';
-        btn.addEventListener('click', function(e) {
+        var el = /** @type {HTMLElement} */ (btn);
+        if (el.dataset.wired === '1') return; el.dataset.wired = '1';
+        el.addEventListener('click', function(e) {
             e.stopPropagation();
-            openMessageMoreMenu(btn);
+            openMessageMoreMenu(el);
         });
     });
 }
@@ -961,9 +1209,9 @@ function wireHoverBars() {
 /* ── Message "more" mini menu ───────────────────────────────────────── */
 function openMessageMoreMenu(anchorBtn) {
     document.querySelectorAll('.mini-menu').forEach(function(m) { m.remove(); });
-    var row = anchorBtn.closest('[data-msg-id]');
+    var row = /** @type {HTMLElement} */ (anchorBtn.closest('[data-msg-id]'));
     if (!row) return;
-    var msgId = row.dataset.msgId;
+    var msgId = row.dataset.msgId || '';
     var isOwn = anchorBtn.dataset.own === 'true';
 
     var menu = document.createElement('div');
@@ -1146,8 +1394,16 @@ function hideTypingIndicator() {
     if (row) row.style.display = 'none';
 }
 
-/* ── Initial wiring ─────────────────────────────────────────────────── */
+/* ── Apply data-bg colours (server-side data-binding avoids invalid CSS) ── */
+function applyDataBgColors() {
+    document.querySelectorAll('[data-bg]').forEach(function(el) {
+        var bg = /** @type {HTMLElement} */ (el).dataset.bg;
+        if (bg) /** @type {HTMLElement} */ (el).style.background = bg;
+    });
+}
+
 scrollToBottom();
+applyDataBgColors();
 initComposerUI();
 wireHoverBars();
 refreshRailSections();
@@ -1156,6 +1412,8 @@ applyMuteFlags();
 refreshRailView();
 setTimeout(simulateConnectionBlip, 7000);
 updateEmptyState();
+applyUserSettings();
+checkForNewNotifications();
 </script>
 </body>
 </html>

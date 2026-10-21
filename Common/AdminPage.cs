@@ -1,3 +1,5 @@
+using System;
+
 namespace RelayChat.Web.Common
 {
     /// <summary>
@@ -11,7 +13,9 @@ namespace RelayChat.Web.Common
         {
             base.OnInit(e);  // runs auth check from SecurePage first
 
-            if (CurrentUser != null && CurrentUser.Role != "Administrator")
+            if (CurrentUser != null &&
+                !string.Equals((CurrentUser.Role ?? string.Empty).Trim(), "Administrator",
+                    StringComparison.OrdinalIgnoreCase))
             {
                 // Not an admin — send back to chat
                 Response.Redirect("~/Chat.aspx", true);

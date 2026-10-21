@@ -15,6 +15,21 @@ namespace RelayChat.Web
     /// </summary>
     public partial class Chat : SecurePage
     {
+        private sealed class NotificationItem
+        {
+            public string FromName { get; set; }
+            public string SenderInitials { get; set; }
+            public string SenderColor { get; set; }
+            public string PreviewText { get; set; }
+            public string TimeAgo { get; set; }
+            public bool IsRead { get; set; }
+            public string ConvoType { get; set; }
+            public string ConvoId { get; set; }
+            public DateTime SentAt { get; set; }
+            public int MessageId { get; set; }
+            public bool IsMention { get; set; }
+        }
+
         /* ── State exposed to the markup repeaters ──────────────────── */
         public int  SelectedConversationId { get; private set; }
         public int  SelectedChannelId      { get; private set; }
@@ -38,12 +53,19 @@ namespace RelayChat.Web
         /* ── Page lifecycle ─────────────────────────────────────────── */
         protected void Page_Load(object sender, EventArgs e)
         {
+            lnkAdmin.Visible = IsAdministrator(CurrentUser);
+            lnkAdmin.NavigateUrl = ResolveUrl("~/Admin/AdminDashboard.aspx");
+
+            var scriptManager = ScriptManager.GetCurrent(Page);
+            if (scriptManager != null)
+                scriptManager.RegisterAsyncPostBackControl(btnLoadConvo);
+
             if (!IsPostBack)
             {
                 BindCurrentUser();
                 BindRail();
                 BindNotifications();
-                tmrRefresh.Enabled = false;
+                BindUserSearch("");
             }
         }
 
@@ -57,11 +79,17 @@ namespace RelayChat.Web
 
             litFooterName.Text    = System.Web.HttpUtility.HtmlEncode(CurrentUser.DisplayName);
             litFooterAvatar.Text  = $@"<div class=""avatar"" style=""width:36px;height:36px;background:{CurrentUser.GetAvatarColor()};font-size:.85rem;"">{CurrentUser.GetInitials()}</div>";
-            lnkAdmin.Visible      = CurrentUser.Role == "Administrator";
 
             // Pre-fill settings fields
             txtSetDisplayName.Text = CurrentUser.DisplayName;
             txtSetStatus.Text      = CurrentUser.StatusMessage ?? "";
+        }
+
+        private static bool IsAdministrator(User user)
+        {
+            return user != null &&
+                string.Equals((user.Role ?? string.Empty).Trim(), "Administrator",
+                    StringComparison.OrdinalIgnoreCase);
         }
 
         /* ── Rail binding ───────────────────────────────────────────── */
@@ -117,7 +145,7 @@ namespace RelayChat.Web
         {
             // Pull recent unread messages addressed to the current user from
             // conversations and channels they're a member of.
-            var notifItems = new List<object>();
+            var notifItems = new List<NotificationItem>();
 
             // DM notifications
             foreach (var c in _convos.GetByUser(CurrentUser.UserId))
@@ -129,7 +157,7 @@ namespace RelayChat.Web
                 var other = c.UserAId == CurrentUser.UserId ? c.UserB : c.UserA;
                 foreach (var m in msgs)
                 {
-                    notifItems.Add(new
+                    notifItems.Add(new NotificationItem
                     {
                         FromName       = other?.DisplayName ?? "Someone",
                         SenderInitials = other?.GetInitials() ?? "?",
@@ -138,7 +166,10 @@ namespace RelayChat.Web
                         TimeAgo        = GetTimeAgo(m.SentAt),
                         IsRead         = false,
                         ConvoType      = "dm",
-                        ConvoId        = c.ConversationId.ToString()
+                        ConvoId        = c.ConversationId.ToString(),
+                        SentAt         = m.SentAt,
+                        MessageId      = m.MessageId,
+                        IsMention      = false
                     });
                 }
             }
@@ -153,7 +184,7 @@ namespace RelayChat.Web
                 foreach (var m in msgs)
                 {
                     var sender = m.Sender;
-                    notifItems.Add(new
+                    notifItems.Add(new NotificationItem
                     {
                         FromName       = "#" + ch.Name,
                         SenderInitials = sender?.GetInitials() ?? "?",
@@ -162,21 +193,25 @@ namespace RelayChat.Web
                         TimeAgo        = GetTimeAgo(m.SentAt),
                         IsRead         = false,
                         ConvoType      = "channel",
-                        ConvoId        = ch.ChannelId.ToString()
+                        ConvoId        = ch.ChannelId.ToString(),
+                        SentAt         = m.SentAt,
+                        MessageId      = m.MessageId,
+                        IsMention      = !string.IsNullOrEmpty(CurrentUser.Username) &&
+                            m.GetDisplayBody().IndexOf("@" + CurrentUser.Username, StringComparison.OrdinalIgnoreCase) >= 0
                     });
                 }
             }
 
             // Sort newest first, cap at 20
-            notifItems = notifItems.OrderByDescending(x => x).Take(20).ToList();
+            notifItems = notifItems.OrderByDescending(x => x.SentAt).Take(20).ToList();
 
             rptNotifs.DataSource = notifItems;
             rptNotifs.DataBind();
 
             bool hasUnread = notifItems.Count > 0;
-            // Expose to markup via a hidden field so JS can show/hide the dot
-            // (simpler than a Literal inside a non-UpdatePanel element)
-            ClientScript.RegisterStartupScript(GetType(), "notifDot",
+            pnlNoNotifications.Visible = true;
+            pnlNoNotifications.Style["display"] = hasUnread ? "none" : string.Empty;
+            ScriptManager.RegisterStartupScript(upNotifs, GetType(), "notifDot",
                 $"document.getElementById('notifDot').style.display = '{(hasUnread ? "block" : "none")}';", true);
         }
 
@@ -193,7 +228,7 @@ namespace RelayChat.Web
         protected void btnLoadConvo_Click(object sender, EventArgs e)
         {
             string arg = Request.Form["__EVENTARGUMENT"] ?? "";
-            ParseConvoArg(arg);
+            if (!ParseConvoArg(arg)) return;
             MarkConversationRead();
             BindMessages();
             BindInfoPanel();
@@ -205,27 +240,55 @@ namespace RelayChat.Web
             upRail.Update();
             upInfoPanel.Update();
             upNotifs.Update();
+            if (SelectedConversationId > 0 || SelectedChannelId > 0)
+                RegisterConversationActivation(IsChannel ? "channel" : "dm",
+                    IsChannel ? SelectedChannelId : SelectedConversationId, "activateLoadedConversation");
         }
 
-        private void ParseConvoArg(string arg)
+        private bool ParseConvoArg(string arg)
         {
-            var parts = arg.Split('_');
-            if (parts.Length < 2) return;
-            if (!int.TryParse(parts[1], out int id)) return;
-            if (parts[0] == "dm")
+            string type = hfSelectedConvoType.Value;
+            int id;
+            if (!int.TryParse(hfSelectedConvoId.Value, out id) || id <= 0)
             {
+                var parts = arg.Split('_');
+                if (parts.Length < 2 || !int.TryParse(parts[1], out id))
+                    return false;
+                type = parts[0];
+            }
+
+            if (type == "dm")
+            {
+                var conversation = _convos.GetById(id);
+                if (conversation == null ||
+                    (conversation.UserAId != CurrentUser.UserId && conversation.UserBId != CurrentUser.UserId))
+                    return false;
+
                 SelectedConversationId = id;
+                SelectedChannelId = 0;
                 IsChannel = false;
                 ViewState["SelectedConversationId"] = id;
+                ViewState["SelectedChannelId"] = 0;
                 ViewState["IsChannel"] = false;
             }
-            else
+            else if (type == "channel")
             {
+                if (!_channels.IsMember(id, CurrentUser.UserId))
+                    return false;
+
+                SelectedConversationId = 0;
                 SelectedChannelId = id;
                 IsChannel = true;
+                ViewState["SelectedConversationId"] = 0;
                 ViewState["SelectedChannelId"] = id;
                 ViewState["IsChannel"] = true;
             }
+            else
+            {
+                return false;
+            }
+
+            return true;
         }
 
         private void RestoreConvoState()
@@ -241,17 +304,10 @@ namespace RelayChat.Web
         /// <summary>Mark all unread messages in the current conversation as read.</summary>
         private void MarkConversationRead()
         {
-            List<Message> msgs;
             if (IsChannel)
-                msgs = _messages.GetByChannel(SelectedChannelId);
+                MarkMessagesRead(_messages.GetByChannel(SelectedChannelId));
             else
-                msgs = _messages.GetByConversation(SelectedConversationId);
-
-            foreach (var m in msgs.Where(m => m.SenderUserId != CurrentUser.UserId && !m.IsRead))
-            {
-                m.IsRead = true;
-                _messages.Update(m);
-            }
+                MarkMessagesRead(_messages.GetByConversation(SelectedConversationId));
         }
 
         /* ── Message binding ────────────────────────────────────────── */
@@ -392,6 +448,33 @@ namespace RelayChat.Web
             upNotifs.Update();
         }
 
+        protected void btnMarkAllRead_Click(object sender, EventArgs e)
+        {
+            foreach (var conversation in _convos.GetByUser(CurrentUser.UserId))
+            {
+                MarkMessagesRead(_messages.GetByConversation(conversation.ConversationId));
+            }
+
+            foreach (var channel in _channels.GetByMember(CurrentUser.UserId))
+            {
+                MarkMessagesRead(_messages.GetByChannel(channel.ChannelId));
+            }
+
+            BindRail();
+            BindNotifications();
+            upRail.Update();
+            upNotifs.Update();
+        }
+
+        private void MarkMessagesRead(IEnumerable<Message> messages)
+        {
+            foreach (var message in messages.Where(m => m.SenderUserId != CurrentUser.UserId && !m.IsRead))
+            {
+                message.IsRead = true;
+                _messages.Update(message);
+            }
+        }
+
         /* ── Conversation header (title/subtitle/avatar) ────────────── */
         /// <summary>
         /// The convo header lives outside the UpdatePanels, so it is updated
@@ -426,7 +509,7 @@ namespace RelayChat.Web
                 "document.getElementById('convoTitle').innerHTML=" + JsStr(title) + ";" +
                 "document.getElementById('convoSubtitle').textContent=" + JsStr(subtitle) + ";" +
                 "document.getElementById('convoAvatarWrap').innerHTML=" + JsStr(avatar) + ";";
-            ClientScript.RegisterStartupScript(GetType(), "convoHeader", js, true);
+            ScriptManager.RegisterStartupScript(upMessages, GetType(), "convoHeader", js, true);
         }
 
         private static string JsStr(string s) =>
@@ -623,12 +706,13 @@ namespace RelayChat.Web
             if (SelectedConversationId > 0 || SelectedChannelId > 0)
             {
                 BindMessages();
-                BindRail();
-                BindNotifications();
                 upMessages.Update();
-                upRail.Update();
-                upNotifs.Update();
             }
+
+            BindRail();
+            BindNotifications();
+            upRail.Update();
+            upNotifs.Update();
         }
 
         /* ── Send message ────────────────────────────────────────────── */
@@ -675,32 +759,47 @@ namespace RelayChat.Web
         /* ── User search (new DM modal) ──────────────────────────────── */
         protected void txtUserSearch_TextChanged(object sender, EventArgs e)
         {
-            string q = txtUserSearch.Text.Trim();
-            var results = _users.Search(q)
-                .Where(u => u.UserId != CurrentUser.UserId)
+            BindUserSearch(txtUserSearch.Text);
+            upUserSearch.Update();
+        }
+
+        private void BindUserSearch(string query)
+        {
+            var results = _users.Search(query)
+                .Where(u => u.UserId != CurrentUser.UserId && !u.IsSuspended)
+                .Take(20)
                 .ToList();
             rptUserSearch.DataSource = results;
             rptUserSearch.DataBind();
-            upUserSearch.Update();
         }
 
         protected void rptUserSearch_ItemCommand(object source, System.Web.UI.WebControls.RepeaterCommandEventArgs e)
         {
             if (e.CommandName != "StartDM") return;
-            int otherId = int.Parse(e.CommandArgument.ToString());
+            if (!int.TryParse(Convert.ToString(e.CommandArgument), out int otherId) ||
+                otherId <= 0 || otherId == CurrentUser.UserId)
+                return;
+
+            var otherUser = _users.GetById(otherId);
+            if (otherUser == null || otherUser.IsSuspended) return;
+
             var convo   = _convos.GetOrCreate(CurrentUser.UserId, otherId);
             SelectedConversationId = convo.ConversationId;
             IsChannel = false;
             ViewState["SelectedConversationId"] = convo.ConversationId;
             ViewState["IsChannel"] = false;
+            MarkConversationRead();
             BindMessages();
             BindRail();
+            BindNotifications();
             BindInfoPanel();
             UpdateConvoHeader();
             tmrRefresh.Enabled = true;
             upMessages.Update();
             upRail.Update();
             upInfoPanel.Update();
+            upNotifs.Update();
+            RegisterConversationActivation("dm", convo.ConversationId, "activateNewDm");
         }
 
         protected string BuildUserSearchItem(string displayName, string username, string initials, string color, bool isOnline)
@@ -712,6 +811,15 @@ namespace RelayChat.Web
     <div style=""font-size:.75rem;color:var(--ash-500);"">@{System.Web.HttpUtility.HtmlEncode(username)} · {(isOnline ? "Online" : "Offline")}</div>
   </div>
 </div>";
+        }
+
+        private void RegisterConversationActivation(string type, int id, string key)
+        {
+            string script = $"window.pendingConvoActivation = {{ type: '{type}', id: {id} }};" +
+                "if (typeof activateConvoUI === 'function') {" +
+                "activateConvoUI(window.pendingConvoActivation.type, window.pendingConvoActivation.id);" +
+                "closeNewConvoModal(); window.pendingConvoActivation = null;}";
+            ScriptManager.RegisterStartupScript(upMessages, GetType(), key, script, true);
         }
 
         /* ── Create channel ──────────────────────────────────────────── */
@@ -748,6 +856,7 @@ namespace RelayChat.Web
             upMessages.Update();
             upRail.Update();
             upInfoPanel.Update();
+            RegisterConversationActivation("channel", ch.ChannelId, "activateNewChannel");
         }
 
         /* ── Save profile settings ───────────────────────────────────── */
@@ -761,6 +870,16 @@ namespace RelayChat.Web
 
             litFooterName.Text = System.Web.HttpUtility.HtmlEncode(CurrentUser.DisplayName);
             pnlSettingsSaved.Visible = true;
+            upSettings.Update();
+        }
+
+        protected void btnUpdatePresence_Click(object sender, EventArgs e)
+        {
+            if (!bool.TryParse(Request.Form["__EVENTARGUMENT"], out bool isOnline)) return;
+
+            CurrentUser.IsOnline = isOnline;
+            CurrentUser.LastSeenAt = DateTime.UtcNow;
+            _users.Update(CurrentUser);
             upSettings.Update();
         }
 
